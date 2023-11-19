@@ -26,5 +26,5 @@ struct ATsocketApp: App {
 final class MsgTxt: ObservableObject {
     static let global = MsgTxt()
     
-    var textMsg = "Coinbase Advanced Trading Websocket\n"
+    @Published var textMsg = "Coinbase Advanced Trading Websocket\n"
 }

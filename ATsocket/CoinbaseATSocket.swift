@@ -32,15 +32,19 @@ class CoinbaseATSocket : ObservableObject {
     init() {
         self.session = URLSession(configuration: .default)
         subscription = Subscription()
-        global.textMsg += "\nConnecting..."
+        
+        // if sent to another websocket address, at least get back error message, uncomment desired line to try out
         self.connect()
+//        self.connect("wss://ws-feed.exchange.coinbase.com")
+        
         global.textMsg += "\nSubscribing..."
         self.subscribe()
     }
     
-    func connect(wsURL: String = "wss://advanced-trade-ws.coinbase.com") {
+    func connect(_ wsURL: String = "wss://advanced-trade-ws.coinbase.com") {
         Log.Log("WebSocket connecting to \(wsURL)")
         // WebSocket connecting to wss://advanced-trade-ws.coinbase.com
+        global.textMsg += "\nWebSocket connecting to \(wsURL)\n"
         
         let request = URLRequest(url: URL(string: wsURL)!)
         
@@ -61,12 +65,14 @@ class CoinbaseATSocket : ObservableObject {
             global.textMsg += "\n\nSending \(String(decoding: data, as: UTF8.self))\n"
             
             self.socket.send(.data(data)) { error in
-                if let error = (error as NSError?) {
-                    Log.Log("Error starting subscription: \(error.localizedDescription)")
-                    self.global.textMsg += "\nError starting subscription: \(error.localizedDescription)"
-                } else {
-                    Log.Log("Websocket message sent: \(String(decoding: data, as: UTF8.self))")
-                    self.global.textMsg += "\nWebsocket message sent: \(String(decoding: data, as: UTF8.self))\n"
+                DispatchQueue.main.sync {
+                    if let error = (error as NSError?) {
+                        Log.Log("Error starting subscription: \(error.localizedDescription)")
+                        self.global.textMsg += "\nError starting subscription: \(error.localizedDescription)"
+                    } else {
+                        Log.Log("Websocket message sent: \(String(decoding: data, as: UTF8.self))")
+                        self.global.textMsg += "\nWebsocket message sent: \(String(decoding: data, as: UTF8.self))\n"
+                    }
                 }
             }
         } catch {
@@ -76,30 +82,35 @@ class CoinbaseATSocket : ObservableObject {
     
     
     func listen() {
-        self.socket.receive { [weak self] (result) in
-            guard let self = self else { return }
-            
-            switch result {
-            case .failure(let error):
-                Log.Log("Socket listen error: \(error)")
-                global.textMsg += "\nSocket listen error: \(error)\n"
-                // Coinbase Socket listen error: Error Domain=NSPOSIXErrorDomain Code=57 "Socket is not connected" UserInfo={NSErrorFailingURLStringKey=wss://advanced-trade-ws.coinbase.com/, NSErrorFailingURLKey=wss://advanced-trade-ws.coinbase.com/}
-
-                return
-                
-            case .success(let message):
-                global.textMsg += "\nSocket message received!"
-                switch message {
-                case .data(let data):
-                    self.handle(data)
-                case .string(let str):
-                    guard let data = str.data(using: .utf8) else { return }
-                    self.handle(data)
-                @unknown default:
-                    break
+        self.socket.receive { (result) in
+            DispatchQueue.main.sync {
+                switch result {
+                case .failure(let error):
+                    Log.Log("Socket listen error: \(error)")
+                    self.global.textMsg += "\nSocket listen error: \(error)\n"
+                    // Coinbase Socket listen error: Error Domain=NSPOSIXErrorDomain Code=57 "Socket is not connected" UserInfo={NSErrorFailingURLStringKey=wss://advanced-trade-ws.coinbase.com/, NSErrorFailingURLKey=wss://advanced-trade-ws.coinbase.com/}
+                    return
+                    
+                case .success(let message):
+                    self.global.textMsg += "\nSocket message received"
+                    
+                    switch message {
+                    case .data(let data):
+                        self.global.textMsg += " as data: \(String(decoding: data, as: UTF8.self))"
+                        
+                        self.handle(data)
+                    case .string(let str):
+                        self.global.textMsg += " as string: \(str)"
+                        guard let data = str.data(using: .utf8) else { return }
+                        self.handle(data)
+                    @unknown default:
+                        self.global.textMsg += " in unknown format"
+                        break
+                    }
                 }
+                
+                self.listen()
             }
-            self.listen()
         }
     }
 
@@ -124,12 +135,13 @@ class CoinbaseATSocket : ObservableObject {
                 global.textMsg += "\nSubscription confirmed"
             case "ticker":
                 Log.Log("Ticker data coming in")
+                global.textMsg += "\nTicker data coming in"
             case "heartbeat":
                 Log.Log("Heartbeat data coming in")
             case "error":
                 let errorMsg = try decoder.decode(ErrorReasonMsg.self, from: data)
                 Log.Log("!!!!!!!!! ERROR: \(errorMsg.message) -- \(errorMsg.reason)")
-                
+                global.textMsg += "\n\n!!!!!!!!! ERROR: \(errorMsg.message) -- \(errorMsg.reason)"
             case "status":
                 Log.Log("Status data coming in")
             default:
