@@ -37,8 +37,13 @@ class CoinbaseATSocket : ObservableObject {
         self.connect()
 //        self.connect("wss://ws-feed.exchange.coinbase.com")
         
-        global.textMsg += "\nSubscribing..."
-        self.subscribe()
+        let waitTime = 0.1
+        global.textMsg += "\n\nWaiting \(waitTime) sec...\n"
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + waitTime) {
+            self.global.textMsg += "\nSubscribing..."
+            self.subscribe()
+        }
     }
     
     func connect(_ wsURL: String = "wss://advanced-trade-ws.coinbase.com") {
@@ -50,9 +55,11 @@ class CoinbaseATSocket : ObservableObject {
         
         socket = session.webSocketTask(with: request)
         
-        global.textMsg += "\nListening..."
-        listen()
         socket.resume()
+        
+        global.textMsg += "\nListening..."
+        
+        listen()
     }
     
     func subscribe() {
@@ -60,18 +67,19 @@ class CoinbaseATSocket : ObservableObject {
         
         do {
             let data = try encoder.encode(subscribeRequest)
+            let message = String(decoding: data, as: UTF8.self)
             
-            Log.Log("Sending \(String(decoding: data, as: UTF8.self))")
-            global.textMsg += "\n\nSending \(String(decoding: data, as: UTF8.self))\n"
+            Log.Log("Sending \(message)")
+            global.textMsg += "\n\nSending \(message)\n"
             
-            self.socket.send(.data(data)) { error in
+            self.socket.send(.string(message)) { error in
                 DispatchQueue.main.sync {
                     if let error = (error as NSError?) {
                         Log.Log("Error starting subscription: \(error.localizedDescription)")
                         self.global.textMsg += "\nError starting subscription: \(error.localizedDescription)"
                     } else {
-                        Log.Log("Websocket message sent: \(String(decoding: data, as: UTF8.self))")
-                        self.global.textMsg += "\nWebsocket message sent: \(String(decoding: data, as: UTF8.self))\n"
+                        Log.Log("Websocket message sent: \(message)")
+                        self.global.textMsg += "\nWebsocket message sent: \(message)\n"
                     }
                 }
             }

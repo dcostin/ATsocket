@@ -10,7 +10,7 @@ import CryptoKit
 
 class CoinbaseAuthentication : NSObject {
     
-    // add your key and secret here, or put it in the Mac KeyChain:
+    // add your key and secret here
     static var apiKey = "mJZwbq2EqADelBEv"
     static var secret = "nYOAeRoSebb59gGPW3aeyh0UQ1FGvcxI"
     
