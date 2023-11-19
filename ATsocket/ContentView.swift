@@ -8,12 +8,14 @@
 import SwiftUI
 
 struct ContentView: View {
+    @ObservedObject var global = MsgTxt.global
+
     var body: some View {
         VStack {
             Image(systemName: "globe")
                 .imageScale(.large)
                 .foregroundStyle(.tint)
-            Text("Hello, world!")
+            Text(global.textMsg)
         }
         .padding()
     }

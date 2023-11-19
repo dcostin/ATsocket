@@ -7,10 +7,13 @@
 
 import SwiftUI
 
+
+
 @main
 struct ATsocketApp: App {
     
     var latestPrice = 0.0
+    
     var websocket = CoinbaseATSocket()
     
     var body: some Scene {
@@ -18,4 +21,10 @@ struct ATsocketApp: App {
             ContentView()
         }
     }
+}
+
+final class MsgTxt: ObservableObject {
+    static let global = MsgTxt()
+    
+    var textMsg = "Coinbase Advanced Trading Websocket\n"
 }

@@ -6,8 +6,10 @@
 //
 
 import Foundation
+import SwiftUI
 
 class CoinbaseATSocket : ObservableObject {
+    @ObservedObject var global = MsgTxt.global
     
     private let session: URLSession
     var socket: URLSessionWebSocketTask!
@@ -30,7 +32,9 @@ class CoinbaseATSocket : ObservableObject {
     init() {
         self.session = URLSession(configuration: .default)
         subscription = Subscription()
+        global.textMsg += "\nConnecting..."
         self.connect()
+        global.textMsg += "\nSubscribing..."
         self.subscribe()
     }
     
@@ -42,6 +46,7 @@ class CoinbaseATSocket : ObservableObject {
         
         socket = session.webSocketTask(with: request)
         
+        global.textMsg += "\nListening..."
         listen()
         socket.resume()
     }
@@ -53,12 +58,15 @@ class CoinbaseATSocket : ObservableObject {
             let data = try encoder.encode(subscribeRequest)
             
             Log.Log("Sending \(String(decoding: data, as: UTF8.self))")
+            global.textMsg += "\n\nSending \(String(decoding: data, as: UTF8.self))\n"
             
             self.socket.send(.data(data)) { error in
                 if let error = (error as NSError?) {
                     Log.Log("Error starting subscription: \(error.localizedDescription)")
+                    self.global.textMsg += "\nError starting subscription: \(error.localizedDescription)"
                 } else {
                     Log.Log("Websocket message sent: \(String(decoding: data, as: UTF8.self))")
+                    self.global.textMsg += "\nWebsocket message sent: \(String(decoding: data, as: UTF8.self))\n"
                 }
             }
         } catch {
@@ -74,11 +82,13 @@ class CoinbaseATSocket : ObservableObject {
             switch result {
             case .failure(let error):
                 Log.Log("Socket listen error: \(error)")
+                global.textMsg += "\nSocket listen error: \(error)\n"
                 // Coinbase Socket listen error: Error Domain=NSPOSIXErrorDomain Code=57 "Socket is not connected" UserInfo={NSErrorFailingURLStringKey=wss://advanced-trade-ws.coinbase.com/, NSErrorFailingURLKey=wss://advanced-trade-ws.coinbase.com/}
 
                 return
                 
             case .success(let message):
+                global.textMsg += "\nSocket message received!"
                 switch message {
                 case .data(let data):
                     self.handle(data)
@@ -111,6 +121,7 @@ class CoinbaseATSocket : ObservableObject {
                 
             case "subscriptions":
                 Log.Log("Subscription confirmed")
+                global.textMsg += "\nSubscription confirmed"
             case "ticker":
                 Log.Log("Ticker data coming in")
             case "heartbeat":
