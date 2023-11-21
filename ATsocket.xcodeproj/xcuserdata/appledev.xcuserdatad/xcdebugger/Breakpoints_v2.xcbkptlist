@@ -14,8 +14,8 @@
             filePath = "ATsocket/CoinbaseATSocket.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "94"
-            endingLineNumber = "94"
+            startingLineNumber = "89"
+            endingLineNumber = "89"
             landmarkName = "listen()"
             landmarkType = "7">
          </BreakpointContent>
@@ -30,8 +30,8 @@
             filePath = "ATsocket/CoinbaseATSocket.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "97"
-            endingLineNumber = "97"
+            startingLineNumber = "92"
+            endingLineNumber = "92"
             landmarkName = "listen()"
             landmarkType = "7">
          </BreakpointContent>

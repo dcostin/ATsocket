@@ -37,13 +37,8 @@ class CoinbaseATSocket : ObservableObject {
         self.connect()
 //        self.connect("wss://ws-feed.exchange.coinbase.com")
         
-        let waitTime = 0.1
-        global.textMsg += "\n\nWaiting \(waitTime) sec...\n"
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + waitTime) {
-            self.global.textMsg += "\nSubscribing..."
-            self.subscribe()
-        }
+        self.global.textMsg += "\nSubscribing..."
+        self.subscribe()
     }
     
     func connect(_ wsURL: String = "wss://advanced-trade-ws.coinbase.com") {
@@ -79,7 +74,7 @@ class CoinbaseATSocket : ObservableObject {
                         self.global.textMsg += "\nError starting subscription: \(error.localizedDescription)"
                     } else {
                         Log.Log("Websocket message sent: \(message)")
-                        self.global.textMsg += "\nWebsocket message sent: \(message)\n"
+//                        self.global.textMsg += "\nWebsocket message sent: \(message)\n"
                     }
                 }
             }
@@ -172,18 +167,18 @@ class CoinbaseATSocket : ObservableObject {
                 
             case "subscriptions":
                 Log.Log("Subscription confirmed")
-                global.textMsg += "\nSubscription confirmed"
                 
                 let subConfirmation = try decoder.decode(SubConfirmation.self, from: data)
                 
                 if subConfirmation.events.count > 0 {
                     if subConfirmation.events[0].subscriptions.ticker.count > 0 {
                         global.pairName = subConfirmation.events[0].subscriptions.ticker[0]
+                        global.textMsg += "\nSubscription confirmed for " + subConfirmation.events[0].subscriptions.ticker.joined(separator: ", ")
                     }
                 }
                 
             case "ticker":
-                Log.Log("Ticker data coming in")
+//                Log.Log("Ticker data coming in")
 //                global.textMsg += "\nTicker data coming in"
                 
                 let tickerEvents = try decoder.decode(TickerEvents.self, from: data)
