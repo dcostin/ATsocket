@@ -123,7 +123,7 @@ class CoinbaseATSocket : ObservableObject {
     struct ErrorReasonMsg: Decodable {
         var type: String
         var message: String
-        var reason: String
+//        var reason: String
     }
     
     struct TickerList: Codable {
@@ -191,10 +191,7 @@ class CoinbaseATSocket : ObservableObject {
                 
             case "heartbeat":
                 Log.Log("Heartbeat data coming in")
-            case "error":
-                let errorMsg = try decoder.decode(ErrorReasonMsg.self, from: data)
-                Log.Log("!!!!!!!!! ERROR: \(errorMsg.message) -- \(errorMsg.reason)")
-                global.textMsg += "\n\n!!!!!!!!! ERROR: \(errorMsg.message) -- \(errorMsg.reason)"
+            
             case "status":
                 Log.Log("Status data coming in")
             default:
@@ -203,10 +200,20 @@ class CoinbaseATSocket : ObservableObject {
                 break
             }
         } catch {
-            Log.Log("websocket feed error: \(error)")
-            Log.Log("\(String(data: data, encoding: .utf8) ?? "")")
             
+            do {
+                let errorMsg = try decoder.decode(ErrorReasonMsg.self, from: data)
+                Log.Log("!!!!!!!!! ERROR: \(errorMsg.message)")
+                
+                DispatchQueue.main.async {
+                    self.global.textMsg += "\n\n!!!!!!!!! ERROR: \(errorMsg.message)"
+                }
+                
+            } catch {
+                Log.Log("websocket feed error: \(error)")
+                Log.Log("\(String(data: data, encoding: .utf8) ?? "")")
+            }
         }
+        
     }
-
 }

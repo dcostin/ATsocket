@@ -33,13 +33,10 @@ final class MsgTxt: ObservableObject {
 }
 
 extension Double {
-    static let numberFormatter = NumberFormatter()
-    
     func usd(_ n: Int = 2) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.maximumFractionDigits = n
         return formatter.string(for: self) ?? "$0.00"
     }
-    
 }
