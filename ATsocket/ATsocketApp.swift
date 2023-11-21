@@ -27,4 +27,19 @@ final class MsgTxt: ObservableObject {
     static let global = MsgTxt()
     
     @Published var textMsg = "Coinbase Advanced Trading Websocket\n"
+    @Published var pairName = "UNK/UNK"
+    @Published var pairValue = 0.0
+    @Published var timestamp = "---"
+}
+
+extension Double {
+    static let numberFormatter = NumberFormatter()
+    
+    func usd(_ n: Int = 2) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.maximumFractionDigits = n
+        return formatter.string(for: self) ?? "$0.00"
+    }
+    
 }

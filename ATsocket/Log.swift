@@ -20,7 +20,7 @@ class Log {
         
 //        if !s.starts(with: "NMEA") { return }
         
-        logQueue.sync {
+        logQueue.async {
             if !(onlyOnce && s == lastLog) {
                 NSLog("- %@", s)
             }
