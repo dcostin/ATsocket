@@ -13,6 +13,7 @@ class CoinbaseATSocket : ObservableObject {
     
     private let session: URLSession
     var socket: URLSessionWebSocketTask!
+    var ticker: String
     
     let decoder = JSONDecoder()
     let encoder = JSONEncoder()
@@ -27,24 +28,25 @@ class CoinbaseATSocket : ObservableObject {
         var signature : String = ""
     }
     
-    var subscription: Subscription
-    
-    init() {
+    init(ticker: String = "BTC-USD") {
         self.session = URLSession(configuration: .default)
-        subscription = Subscription()
+        self.ticker = ticker
         
         // if sent to another websocket address, at least get back error message, uncomment desired line to try out
         self.connect()
 //        self.connect("wss://ws-feed.exchange.coinbase.com")
         
-        self.global.textMsg += "\nSubscribing..."
-        self.subscribe()
+        self.global.textMsg += "\nSubscribing to ticker feed for \(ticker)..."
+        self.subscribe(Subscription(product_ids: [ticker], channel: "ticker"))
+        
+        self.global.textMsg += "\nSubscribing to heartbeat for \(ticker)..."
+        self.subscribe(Subscription(product_ids: [ticker], channel: "heartbeats"))
     }
     
     func connect(_ wsURL: String = "wss://advanced-trade-ws.coinbase.com") {
-        Log.Log("WebSocket connecting to \(wsURL)")
+        Log.Log("\(ticker) WebSocket connecting to \(wsURL)")
         // WebSocket connecting to wss://advanced-trade-ws.coinbase.com
-        global.textMsg += "\nWebSocket connecting to \(wsURL)\n"
+        global.textMsg += "\n\(ticker) WebSocket connecting to \(wsURL)\n"
         
         let request = URLRequest(url: URL(string: wsURL)!)
         
@@ -52,13 +54,13 @@ class CoinbaseATSocket : ObservableObject {
         
         socket.resume()
         
-        global.textMsg += "\nListening..."
+        global.textMsg += "\n\(ticker) WebSocket listening..."
         
         listen()
     }
     
-    func subscribe() {
-        let subscribeRequest = CoinbaseAuthentication.authenticate(subscription)
+    func subscribe(_ sub: Subscription) {
+        let subscribeRequest = CoinbaseAuthentication.authenticate(sub)
         
         do {
             let data = try encoder.encode(subscribeRequest)
@@ -70,16 +72,16 @@ class CoinbaseATSocket : ObservableObject {
             self.socket.send(.string(message)) { error in
                 DispatchQueue.main.async {
                     if let error = (error as NSError?) {
-                        Log.Log("Error starting subscription: \(error.localizedDescription)")
-                        self.global.textMsg += "\nError starting subscription: \(error.localizedDescription)"
+                        Log.Log("\(self.ticker) Error starting subscription: \(error.localizedDescription)")
+                        self.global.textMsg += "\n\(self.ticker) Error starting subscription: \(error.localizedDescription)"
                     } else {
-                        Log.Log("Websocket message sent: \(message)")
+                        Log.Log("\(self.ticker) Websocket message sent: \(message)")
 //                        self.global.textMsg += "\nWebsocket message sent: \(message)\n"
                     }
                 }
             }
         } catch {
-            Log.Log("Failed to decode subscription message: \(error)")
+            Log.Log("\(self.ticker) Failed to decode subscription message: \(error)")
         }
     }
     
@@ -89,8 +91,8 @@ class CoinbaseATSocket : ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .failure(let error):
-                    Log.Log("Socket listen error: \(error)")
-                    self.global.textMsg += "\nSocket listen error: \(error)\n"
+                    Log.Log("\(self.ticker) Socket listen error: \(error)")
+                    self.global.textMsg += "\n\(self.ticker) Socket listen error: \(error)\n"
                     // Coinbase Socket listen error: Error Domain=NSPOSIXErrorDomain Code=57 "Socket is not connected" UserInfo={NSErrorFailingURLStringKey=wss://advanced-trade-ws.coinbase.com/, NSErrorFailingURLKey=wss://advanced-trade-ws.coinbase.com/}
                     return
                     
@@ -123,11 +125,11 @@ class CoinbaseATSocket : ObservableObject {
     struct ErrorReasonMsg: Decodable {
         var type: String
         var message: String
-//        var reason: String
     }
     
-    struct TickerList: Codable {
-        var ticker : [ String ]
+    struct TickerList: Decodable {
+        var ticker : [String]? = []
+        var heartbeats : [String]? = []
     }
     struct SubscriptionEvents: Decodable {
         var subscriptions: TickerList
@@ -166,14 +168,27 @@ class CoinbaseATSocket : ObservableObject {
             switch channel {
                 
             case "subscriptions":
-                Log.Log("Subscription confirmed")
+                Log.Log("\(self.ticker) Subscription confirmed")
+//                Log.Log("\(String(data: data, encoding: .utf8) ?? "")")
                 
                 let subConfirmation = try decoder.decode(SubConfirmation.self, from: data)
                 
+                var subscriptions : [String] = []
+                
                 if subConfirmation.events.count > 0 {
-                    if subConfirmation.events[0].subscriptions.ticker.count > 0 {
-                        global.pairName = subConfirmation.events[0].subscriptions.ticker[0]
-                        global.textMsg += "\nSubscription confirmed for " + subConfirmation.events[0].subscriptions.ticker.joined(separator: ", ")
+                    if let t = subConfirmation.events[0].subscriptions.ticker, t.count > 0 {
+                        if !global.pairNames.contains(t[0]) {
+                            DispatchQueue.main.async {
+                                self.global.pairNames.append(t[0]) // assumes only one ticker per websocket
+                            }
+                        }
+                        subscriptions = ["ticker: \(t.joined(separator: ", "))"]
+                    }
+                    if let hb = subConfirmation.events[0].subscriptions.heartbeats, hb.count > 0 {
+                        subscriptions.append("heartbeats")
+                    }
+                    DispatchQueue.main.async {
+                        self.global.textMsg += "\n\(self.ticker) Subscription confirmed for " + subscriptions.joined(separator: "; ")
                     }
                 }
                 
@@ -184,18 +199,27 @@ class CoinbaseATSocket : ObservableObject {
                 let tickerEvents = try decoder.decode(TickerEvents.self, from: data)
                 if tickerEvents.events.count > 0 {
                     if tickerEvents.events[0].tickers.count > 0 {
-                        global.pairValue = Double(tickerEvents.events[0].tickers[0].price) ?? 0.0
-                        global.timestamp = tickerEvents.timestamp
+                        DispatchQueue.main.async {
+                            self.global.pairValues[self.ticker] = Double(tickerEvents.events[0].tickers[0].price) ?? 0.0
+                            self.global.timestamps[self.ticker] = tickerEvents.timestamp
+                        }
                     }
                 }
                 
-            case "heartbeat":
-                Log.Log("Heartbeat data coming in")
+            case "heartbeats":
+//                Log.Log("Heartbeat data coming in")
+                DispatchQueue.main.async {
+                    self.global.heartbeats[self.ticker] = "♥︎"
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        self.global.heartbeats[self.ticker] = "♡"
+                    }
+                }
             
             case "status":
-                Log.Log("Status data coming in")
+                Log.Log("\(self.ticker) Status data coming in")
+                
             default:
-                Log.Log("Unhandled websocket feed")
+                Log.Log("\(self.ticker) Unhandled websocket feed")
                 Log.Log("\(String(data: data, encoding: .utf8) ?? "")")
                 break
             }
@@ -203,14 +227,14 @@ class CoinbaseATSocket : ObservableObject {
             
             do {
                 let errorMsg = try decoder.decode(ErrorReasonMsg.self, from: data)
-                Log.Log("!!!!!!!!! ERROR: \(errorMsg.message)")
+                Log.Log("!!!!!!!!! \(self.ticker) ERROR: \(errorMsg.message)")
                 
                 DispatchQueue.main.async {
-                    self.global.textMsg += "\n\n!!!!!!!!! ERROR: \(errorMsg.message)"
+                    self.global.textMsg += "\n\n!!!!!!!!! \(self.ticker) ERROR: \(errorMsg.message)"
                 }
                 
             } catch {
-                Log.Log("websocket feed error: \(error)")
+                Log.Log("\(self.ticker) websocket feed error: \(error)")
                 Log.Log("\(String(data: data, encoding: .utf8) ?? "")")
             }
         }

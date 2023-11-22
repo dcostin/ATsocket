@@ -17,10 +17,18 @@ struct ContentView: View {
                 .foregroundStyle(.tint)
                 .padding()
             
-            Text(global.pairName)
-            Text(global.pairValue.usd())
-            Text(" ")
-            Text(global.timestamp)
+            HStack {
+                ForEach (global.pairNames, id: \.self) { pairName in
+                    VStack {
+                        Text(pairName)
+                        Text(global.pairValues[pairName]?.usd() ?? "")
+                            .font(.system(.body, design: .monospaced))
+                        Text(global.heartbeats[pairName] ?? "")
+                    }
+                    Spacer()
+                        .frame(width: 20.0)
+                }
+            }
         }
         .padding()
         
